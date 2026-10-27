@@ -50,7 +50,11 @@ jobs:
                   "label": "कहानी चैनल",
                   "voice": "hi-IN-SwaraNeural", "rate": "-8%", "pitch": "-3Hz",
                   "category": "24", "trend_cat": "24",
-                  "style": ", 2D Indian cartoon style like Hindi story cartoons, flat colors, clean dark outlines, simple cel shading, expressive characters, night time horror mood, deep blue and purple tones with warm lantern glow and red accents, no text, no gore",
+                  "styles": [
+                      ", detailed 2D animated illustration like a Hindi horror mystery animated series, dark moody atmospheric environments, rich background detail, soft cinematic lighting, stylized cartoon characters with clean outlines, muted dark tones with warm lantern glow, no text, no logo, no gore",
+                      ", 2D Indian cartoon style like Hindi story cartoons, flat colors, clean dark outlines, simple cel shading, expressive characters, night time horror mood, deep blue and purple tones with warm lantern glow and red accents, no text, no gore",
+                  ],
+                  "style": "",
                   "types": ["डरावनी कहानी", "रहस्य/मिस्ट्री कहानी", "पुरानी हवेली/लोककथा", "रोमांचक सस्पेंस कहानी"],
                   "brief": ("Ye Hindi kahaniyon ka channel hai. Ek bilkul nayi, original aur KAALPANIK kahani likho. "
                             "Koi asli vyakti, asli ghatna ya asli naam mat lo. Zyada khoon-kharaba ya hinsa nahi. "
@@ -71,10 +75,11 @@ jobs:
                   "disclaimer": "ℹ️ यह वीडियो सार्वजनिक जानकारी पर आधारित है। हमने प्रोडक्ट खुद टेस्ट नहीं किया है।",
               },
               "GAME": {
-                  "label": "Free Fire MAX चैनल",
+                  "label": "Bhuri Gamer चैनल",
                   "voice": "hi-IN-SwaraNeural", "rate": "+6%", "pitch": "+0Hz",
                   "category": "20", "trend_cat": "20",
-                  "style": ", stylized battle royale video game scene, cinematic lighting, vibrant colors, no text, no logos",
+                  "style": ", anime style illustration, dark black and electric blue color palette, glowing blue flames, cinematic dramatic lighting, battle royale game mood, no text, no logos",
+                  "host": "main host character: a teenage anime boy gamer with spiky black hair, bright blue eyes, black hoodie, holding a black game controller",
                   "types": ["Free Fire MAX के अजीब-ग़रीब फैक्ट्स", "Free Fire MAX के आने वाले अपडेट/इवेंट की जानकारी",
                             "Free Fire MAX के कैरेक्टर और पेट्स की कहानी", "Free Fire MAX टॉप 10 लिस्ट",
                             "Free Fire MAX की फनी कहानी/स्किट (AI से बनी काल्पनिक)"],
@@ -83,7 +88,9 @@ jobs:
                             "baatein sirf 'Facts' me mile pakki jaankari se likho, apni taraf se date ya detail mat banao. Agar Facts "
                             "me kuch nahi hai, to sirf funny kahani wala type chuno. Asli gameplay dikhane ya khud khelne ka daava "
                             "mat karo. Image prompts me asli character ke naam ya logo mat likho, generic stylized battle-royale "
-                            "scene likho. Mazedaar, tez bolchal wali bhasha."),
+                            "scene likho. Channel ka naam 'Bhuri Gamer' hai; video me ek fixed anime host (kala hoodie, neeli aankhen) hai, "
+                            "jo kai scenes me dikhna chahiye. Facts-host jaisa news-anchor style nahi, balki mazedaar gamer dost jaisa andaaz rakho. "
+                            "Mazedaar, tez bolchal wali bhasha."),
                   "disclaimer": "ℹ️ यह एक फैन-मेड वीडियो है, Garena से जुड़ा नहीं है।",
               },
           }
@@ -404,7 +411,9 @@ jobs:
               if not key:
                   notify("⚠️ Kisi bhi channel ka secret nahi mila (YT_REFRESH_TOKEN_STORY / _GAME).")
                   return
-              ch = CHANNELS[key]
+              ch = dict(CHANNELS[key])
+              if ch.get("styles"):
+                  ch["style"] = random.choice(ch["styles"])
               user_text = discord_input(state)
               notify(f"🚀 आज की बारी: {ch['label']}" + (f"\nAapka idea: {user_text[:200]}" if user_text else "\n(Trend dekhkar topic khud chun raha hu)"))
 
@@ -416,7 +425,7 @@ jobs:
               durs, entries, t0 = [], [], 0.0
               seed = random.randint(1, 99999)
               for i, sc in enumerate(plan["scenes"]):
-                  d = make_scene(i, sc, ch, seed, plan.get("characters", ""))
+                  d = make_scene(i, sc, ch, seed, (ch.get("host", "") + ". " + plan.get("characters", "")).strip(". "))
                   durs.append(d)
                   words = sc["narration"].split()
                   chunks = [" ".join(words[k:k + 7]) for k in range(0, len(words), 7)] or [""]
