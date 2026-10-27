@@ -37,7 +37,7 @@ jobs:
           import requests
 
           # ================= SETTINGS (zarurat ho to yahin badlo) =================
-          GEMINI_MODEL = "gemini-2.5-flash"
+          GEMINI_MODEL = "gemini-3.5-flash"
           SCENES = 12                        # 12 scenes = lagbhag 6-8 minute
           SHORTS_COUNT = 4                   # 1 long + 4 shorts = 5 uploads (YouTube free quota me fit)
           SHORT_LEN = 50                     # seconds
