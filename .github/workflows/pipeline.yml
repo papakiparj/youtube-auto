@@ -44,7 +44,7 @@ jobs:
           SHORT_GAP_HOURS = 4                # har Short 4 ghante baad public hoga
           MADE_FOR_KIDS = False
           REGION = "IN"
-          ORDER = ["STORY", "GAME"]   # roz ek channel, baari-baari (kahani -> gaming). Tech baad me chahiye to "TECH" jodo
+          ORDER = ["STORY"]   # abhi sirf kahani channel. Gaming wapas chahiye to ["STORY", "GAME"] kar do
           CHANNELS = {
               "STORY": {
                   "label": "कहानी चैनल",
@@ -273,7 +273,7 @@ jobs:
           User ka idea ya script (agar diya hai to ussi par video banao): {user_text or "(none)"}
 
           Ek alag video type aur topic chuno, aur {SCENES} scenes ki 6 se 8 minute ki video likho.
-          Narration Hindi (Devanagari) me likho, English words zarurat par English me, bolchal wali mazedaar bhasha, har scene me lagbhag 70 se 85 shabd. Shuruaat me strong hook.
+          Narration SIRF Devanagari lipi me likho (jaise: "वो रात बहुत डरावनी थी"). Roman/Hinglish me Hindi mat likho, ye galat hai. Sirf zaroori English shabd (jaise AK47, Gloo Wall) English akshar me ho sakte hain. Bolchal wali mazedaar bhasha, har scene me lagbhag 70 se 85 shabd. Shuruaat me strong hook.
           Image prompts me jahan kirdar ho, 'characters' wale description ke hisaab se hi unhe dikhao taaki har scene me wahi kirdar lage.
           Sirf JSON do, bilkul is shape me:
           {{"video_type": "", "topic": "", "title": "(max 90 chars, catchy)", "description": "(SEO, 3-4 lines + hashtags)", "tags": ["..."], "thumb_text": "(English CAPS, max 4 words)", "characters": "(English, main kirdaron ka FIXED chhota description: umar, ladka/ladki, baal, kapde ke rang, body; har video me wahi rahe. Agar kirdar nahi to khali)", "scenes": [{{"narration": "", "image_prompt": "(English, detailed, no text in image)"}}]}}"""
@@ -281,6 +281,11 @@ jobs:
               sc = [s for s in plan.get("scenes", []) if s.get("narration") and s.get("image_prompt")]
               if len(sc) < 3:
                   raise Exception("Gemini ne sahi scenes nahi diye")
+              txt = "".join(s["narration"] for s in sc)
+              dev = sum(1 for c in txt if "\u0900" <= c <= "\u097f")
+              lat = sum(1 for c in txt if c.isascii() and c.isalpha())
+              if dev < lat:      # zyada Roman hai to dobara likhwao
+                  raise Exception("Narration Devanagari me nahi aayi, dobara likhwa raha hu")
               plan["scenes"] = sc[:SCENES]
               return plan
 
@@ -302,22 +307,34 @@ jobs:
           def make_image(prompt, path, style, seed):
               from PIL import Image
 
-              q = urllib.parse.quote(prompt + style)
-              url = f"https://image.pollinations.ai/prompt/{q}?width=1280&height=720&nologo=true&seed={seed}"
+              time.sleep(4)   # free image server ko saans lene do (rate limit se bachne ke liye)
+              q = urllib.parse.quote(prompt[:700] + style)
+              state_n = {"n": 0}
 
               def go():
-                  r = requests.get(url, timeout=120)
+                  state_n["n"] += 1
+                  sd = seed + (state_n["n"] - 1) * 7     # har dobara koshish par alag seed
+                  url = f"https://image.pollinations.ai/prompt/{q}?width=1280&height=720&nologo=true&seed={sd}"
+                  r = requests.get(url, timeout=150)
                   r.raise_for_status()
                   if "image" not in r.headers.get("content-type", ""):
                       raise Exception("image nahi mili")
                   path.write_bytes(r.content)
-                  Image.open(path).convert("RGB").save(path, "JPEG")
+                  im = Image.open(path).convert("RGB")
+                  w, h = im.size
+                  # kone ki watermark hatane ke liye thoda kaat kar wapas bada karo
+                  im = im.crop((0, 0, int(w * 0.93), int(h * 0.90))).resize((1280, 720))
+                  im.save(path, "JPEG", quality=92)
 
               try:
-                  retry(go, tries=3, wait=8)
+                  retry(go, tries=5, wait=15)
               except Exception as e:
                   print("image fallback:", e)
-                  Image.new("RGB", (1280, 720), (random.randint(20, 90), random.randint(60, 140), random.randint(20, 90))).save(path, "JPEG")
+                  older = sorted([p for p in W.glob("s*.jpg") if p != path], key=lambda p: p.stat().st_mtime)
+                  if older:
+                      path.write_bytes(older[-1].read_bytes())      # pichli achhi tasveer dobara (hari screen se behtar)
+                  else:
+                      Image.new("RGB", (1280, 720), (12, 14, 40)).save(path, "JPEG")
 
 
           def make_voice(text, path, voice, rate="+0%", pitch="+0Hz"):
@@ -443,7 +460,7 @@ jobs:
               durs, entries, t0 = [], [], 0.0
               seed = random.randint(1, 99999)
               for i, sc in enumerate(plan["scenes"]):
-                  d = make_scene(i, sc, ch, seed, (ch.get("host", "") + ". " + plan.get("characters", "")).strip(". "))
+                  d = make_scene(i, sc, ch, seed, ((ch.get("host", "") if i % 3 == 0 else "") + ". " + plan.get("characters", "")).strip(". "))
                   durs.append(d)
                   words = sc["narration"].split()
                   chunks = [" ".join(words[k:k + 7]) for k in range(0, len(words), 7)] or [""]
